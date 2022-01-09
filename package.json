@@ -15,12 +15,22 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "CC-BY-NC",
   "bugs": {
     "url": "https://github.com/hatuanem199801/express-vercel/issues"
   },
   "homepage": "https://github.com/hatuanem199801/express-vercel#readme",
   "dependencies": {
-    "express": "^4.17.1"
+    "axios": "^0.21.4",
+    "body-parser": "^1.19.0",
+    "child_process": "^1.0.2",
+    "express": "^4.17.1",
+    "fs": "0.0.1-security",
+    "nodemon": "^2.0.15",
+    "qrcode-terminal": "^0.12.0",
+    "request": "^2.88.2",
+    "shelljs": "^0.8.4",
+    "valid-url": "^1.0.9",
+    "whatsapp-web.js": "^1.12.5"
   }
 }
