@@ -1,10 +1,92 @@
 const express = require("express");
+const bodyParser = require("body-parser");
+const fs = require('fs');
+const axios = require('axios');
+const shelljs = require('shelljs');
+
+const config = require('./config.json');
+const { Client } = require('whatsapp-web.js');
+const SESSION_FILE_PATH = process.env.SESSION_FILE_PATH || './session.json';
+
+let sessionCfg;
+if (fs.existsSync(SESSION_FILE_PATH)) {
+    sessionCfg = require(SESSION_FILE_PATH);
+}
+
+process.title = "whatsapp-node-api";
+global.client = new Client({
+    puppeteer: {
+        headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--unhandled-rejections=strict'
+    ]},
+    session: sessionCfg
+});
+
+global.authed = false;
+
 const app = express();
-const product = require("./api/product");
 
-app.use(express.json({ extended: false }));
+const port = process.env.PORT || config.port;
+//Set Request Size Limit 50 MB
+app.use(bodyParser.json({ limit: '50mb' }));
 
-app.use("/api/product", product);
+app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Server is running in port ${PORT}`));
+client.on('qr', qr => {
+    fs.writeFileSync('./api/last.qr', qr);
+});
+
+client.on('authenticated', (session) => {
+    console.log("AUTH!");
+    sessionCfg = session;
+
+    fs.writeFile(SESSION_FILE_PATH, JSON.stringify(session), function (err) {
+        if (err) {
+            console.error(err);
+        }
+        authed = true;
+    });
+
+    try {
+        fs.unlinkSync('./api/last.qr')
+    } catch(err) {}
+});
+
+client.on('auth_failure', () => {
+    console.log("AUTH Failed !")
+    sessionCfg = ""
+    process.exit()
+});
+
+client.on('ready', () => {
+    console.log('Client is ready!');
+});
+
+client.on('message', async msg => {
+    if (config.webhook.enabled) {
+        if (msg.hasMedia) {
+            const attachmentData = await msg.downloadMedia()
+            msg.attachmentData = attachmentData
+        }
+        axios.post(config.webhook.path, { msg })
+    }
+})
+client.initialize();
+
+const chatRoute = require('./api/chatting');
+const authRoute = require('./api/auth');
+
+app.use(function(req, res, next){
+    console.log(req.method + ' : ' + req.path);
+    next();
+});
+app.use('/chat',chatRoute);
+app.use('/auth',authRoute);
+
+app.listen(port, () => {
+    console.log("Server is running in port : " + port);
+});
